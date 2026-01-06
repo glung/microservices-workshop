@@ -1,0 +1,29 @@
+{
+  "name": "traffic-simulator",
+  "version": "1.0.0",
+  "description": "Traffic simulator for Course Platform API using Apache Bench",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node src/index.ts",
+    "dev": "ts-node src/index.ts"
+  },
+  "keywords": [
+    "traffic",
+    "load-testing",
+    "apache-bench"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "commander": "^11.0.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.0",
+    "@types/uuid": "^10.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
+  }
+}
