@@ -2,14 +2,23 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    monitor: 'course-platform-monitor'
+    monitor: "course-platform-monitor"
 
 scrape_configs:
-  - job_name: 'course-platform-monolith'
+  - job_name: "course-platform-gateway"
     static_configs:
-      - targets: ['app:3000']
+      - targets: ["gateway:3000"]
         labels:
-          service: 'monolith'
-          environment: 'development'
-    metrics_path: '/metrics'
-    scrape_interval: 10s
+          service: "gateway"
+          environment: "development"
+    metrics_path: "/metrics"
+    scrape_interval: 5s
+
+  - job_name: "course-platform-monolith"
+    static_configs:
+      - targets: ["monolith:3000"]
+        labels:
+          service: "monolith"
+          environment: "development"
+    metrics_path: "/metrics"
+    scrape_interval: 5s

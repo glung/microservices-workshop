@@ -27,12 +27,6 @@ cd backend
 docker compose up
 ```
 
-The services will be available at:
-
-- **API**: http://localhost:3000
-- **Grafana Dashboard**: http://localhost:3001
-- **Prometheus**: http://localhost:9090
-
 ### Stopping the Service
 
 ```bash
@@ -63,36 +57,13 @@ Before running tests, ensure PostgreSQL is running:
 docker compose up -d db
 ```
 
-Set required environment variables:
+### Running e2e Tests
 
 ```bash
-export JWT_SECRET=test_secret
-export DATABASE_URL=postgresql://courseuser:coursepass@localhost:5432/coursedb
-```
-
-### Running Tests
-
-```bash
-# Run all tests
+cd gateway
+npm install
 npm test
-
-# Run tests in watch mode (for development)
-npm run test:watch
-
-# Run only unit tests
-npm run test:unit
-
-# Run only E2E tests
-npm run test:e2e
 ```
-
-### Test Database
-
-Tests use a separate `coursedb_test` database that is:
-
-- Automatically created before tests run
-- Cleaned between each test for isolation
-- Uses the same schema as the production database
 
 ## Monitoring
 

@@ -1,26 +1,26 @@
-import express, { Request, Response } from 'express';
-import { initDB } from './db';
-import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './swagger';
-import { metricsMiddleware } from './middleware/metrics';
-import { register } from './monitoring/metrics';
+import express, { Request, Response } from "express";
+import swaggerUi from "swagger-ui-express";
+import { initDB } from "./db";
+import { metricsMiddleware } from "./middleware/metrics";
+import { register } from "./monitoring/metrics";
+import swaggerSpec from "./swagger";
 
 const app = express();
 app.use(express.json());
 
 app.use(metricsMiddleware);
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-import authRoutes from './routes/auth';
-import catalogRoutes from './routes/catalog';
-import coursesRoutes from './routes/courses';
-import accountsRoutes from './routes/accounts';
+import accountsRoutes from "./routes/accounts";
+import authRoutes from "./routes/auth";
+import catalogRoutes from "./routes/catalog";
+import coursesRoutes from "./routes/courses";
 
-app.use('/api/auth', authRoutes);
-app.use('/api/catalog', catalogRoutes);
-app.use('/api/courses', coursesRoutes);
-app.use('/api/accounts', accountsRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/catalog", catalogRoutes);
+app.use("/api/courses", coursesRoutes);
+app.use("/api/accounts", accountsRoutes);
 
 /**
  * @swagger
@@ -44,12 +44,12 @@ app.use('/api/accounts', accountsRoutes);
  *                   type: string
  *                   example: monolith
  */
-app.get('/health', (_req: Request, res: Response): void => {
-  res.json({ status: 'healthy', service: 'monolith' });
+app.get("/health", (_req: Request, res: Response): void => {
+  res.json({ status: "healthy", service: "monolith" });
 });
 
-app.get('/metrics', async (_req: Request, res: Response): Promise<void> => {
-  res.set('Content-Type', register.contentType);
+app.get("/metrics", async (_req: Request, res: Response): Promise<void> => {
+  res.set("Content-Type", register.contentType);
   const metrics = await register.metrics();
   res.end(metrics);
 });

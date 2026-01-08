@@ -1,27 +1,75 @@
 version: '3.8'
+# 📣 Notez qu'au lieu d'avoir un service 'app', nous avons deux services distincts : 'gateway' et 'monolith'.
 services:
-  app:
-    build: .
+  gateway:
+    build: gateway
     ports:
       - "3000:3000"
+    # 📣 Volumes pour activer le hot-reload
+    volumes:
+      - ./gateway/src:/app/src:ro
+      - ./gateway/tsconfig.json:/app/tsconfig.json:ro
+      # 📣 Exclut node_modules pour éviter les conflits
+      - /app/node_modules
     environment:
-      - DATABASE_URL=postgresql://courseuser:coursepass@db:5432/coursedb
-      - JWT_SECRET=workshop_fake_secret_key
       - PORT=3000
-      - NODE_ENV=production
+      - NODE_ENV=development
+      # 👩‍🎓 Fournir l'URL du monolith au service gateway.
+      # 📜 https://docs.docker.com/compose/how-tos/networking/
+      - MONOLITH_URL=http://<service>:<port>
     depends_on:
-      db:
-        condition: service_healthy
+      - monolith
+    # 📣 Le health check est un endpoint qui sera utilisé pour vérifier que le service est en bonne santé.
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/gateway/health"]
+      interval: 3s
+      timeout: 1s
+      retries: 3
+      start_period: 1s
     deploy:
       resources:
         limits:
-          cpus: '1.0'      # Limit to 1 CPU core
-          memory: 512M     # Limit to 512MB RAM
+          cpus: '1.0'
+          memory: 512M
         reservations:
-          cpus: '0.5'      # Reserve at least 0.5 CPU
-          memory: 256M     # Reserve at least 256MB RAM
+          cpus: '0.5'
+          memory: 256M
 
-  db:
+  monolith:
+    build: monolith
+    # 📣 Port exposé uniquement en interne, accessible via la gateway
+    expose:
+      - "3000"
+    # 📣 Volumes pour activer le hot-reload
+    volumes:
+      - ./monolith/src:/app/src:ro
+      - ./monolith/tsconfig.json:/app/tsconfig.json:ro
+      # 📣 Exclut node_modules pour éviter les conflits
+      - /app/node_modules
+    environment:
+      - DATABASE_URL=postgresql://courseuser:coursepass@monolith-db:5432/coursedb
+      - JWT_SECRET=workshop_fake_secret_key
+      - PORT=3000
+      - NODE_ENV=development
+    depends_on:
+      monolith-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 3s
+      timeout: 1s
+      retries: 3
+      start_period: 1s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+  # 📣 'db' s'appelle 'monolith-db' et gateway n'y accède pas directement
+  monolith-db:
     image: postgres:15-alpine
     environment:
       - POSTGRES_USER=courseuser
@@ -39,11 +87,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'      # Limit to 1 CPU core
-          memory: 512M     # Limit to 512MB RAM
+          cpus: '1.0'
+          memory: 512M
         reservations:
-          cpus: '0.25'     # Reserve at least 0.25 CPU
-          memory: 128M     # Reserve at least 128MB RAM
+          cpus: '0.25'
+          memory: 128M
 
   prometheus:
     image: prom/prometheus:latest
@@ -58,7 +106,7 @@ services:
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
     depends_on:
-      - app
+      - monolith
 
   grafana:
     image: grafana/grafana:latest
