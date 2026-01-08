@@ -1,31 +1,32 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 import { pool } from '../db';
-import { JwtPayload, UserWithSubscription } from '../types/models';
+import { UserWithSubscription } from '../types/models';
 
 const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.replace('Bearer ', '');
+    // 👩‍🎓 Lire l'ID utilisateur depuis le header X-User-ID fourni par la gateway
+    // 📣 La gateway a déjà vérifié le JWT et nous transmet l'identité de l'utilisateur
+    const userIdHeader = req.headers['x-user-id'];
 
-    if (!token) {
+    if (!userIdHeader || typeof userIdHeader !== 'string') {
       res.status(401).json({ error: 'Authentication required' });
       return;
     }
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error('JWT_SECRET is not defined');
+    // 🤓 Convertir le header en nombre
+    const userId = parseInt(userIdHeader, 10);
+    if (isNaN(userId)) {
+      res.status(401).json({ error: 'Invalid user ID' });
+      return;
     }
 
-    const decoded = jwt.verify(token, secret) as JwtPayload;
-
+    // 📣 Récupérer les données complètes de l'utilisateur depuis la base de données
     const result = await pool.query<UserWithSubscription>(`
       SELECT u.*, s.kind as subscription_kind, s.end_date
       FROM users u
       LEFT JOIN subscriptions s ON u.id = s.user_id AND s.active = true
       WHERE u.id = $1
-    `, [decoded.userId]);
+    `, [userId]);
 
     if (result.rows.length === 0) {
       res.status(401).json({ error: 'User not found' });
@@ -59,27 +60,31 @@ const authenticate = async (req: Request, res: Response, next: NextFunction): Pr
 
 const optionalAuth = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.replace('Bearer ', '');
+    // 👩‍🎓 Lire l'ID utilisateur depuis le header X-User-ID (si présent)
+    // 📣 Pour l'authentification optionnelle, l'absence du header signifie que l'utilisateur n'est pas authentifié
+    const userIdHeader = req.headers['x-user-id'];
 
-    if (!token) {
+    if (!userIdHeader || typeof userIdHeader !== 'string') {
+      // 📣 Pas de header X-User-ID : continuer sans contexte utilisateur
       next();
       return;
     }
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
+    // 🤓 Convertir le header en nombre
+    const userId = parseInt(userIdHeader, 10);
+    if (isNaN(userId)) {
+      // 📣 Header invalide : continuer sans contexte utilisateur
       next();
       return;
     }
 
-    const decoded = jwt.verify(token, secret) as JwtPayload;
+    // 📣 Récupérer les données de l'utilisateur depuis la base de données
     const result = await pool.query<UserWithSubscription>(`
       SELECT u.*, s.kind as subscription_kind, s.end_date
       FROM users u
       LEFT JOIN subscriptions s ON u.id = s.user_id AND s.active = true
       WHERE u.id = $1
-    `, [decoded.userId]);
+    `, [userId]);
 
     if (result.rows.length > 0) {
       const user = result.rows[0];
