@@ -5,6 +5,12 @@ import { JwtPayload, UserWithSubscription } from '../types/models';
 
 const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    // 👩‍🎓 EXERCICE : Modifier ce middleware pour lire l'ID utilisateur depuis le header X-User-ID
+    // 📣 La gateway a déjà vérifié le JWT, nous sommes dans une "zone de confiance"
+    // 📣 Le monolithe ne doit PLUS vérifier le JWT, il doit faire confiance à la gateway
+
+    // 💣 ANCIEN CODE - À SUPPRIMER : Extraction et vérification du JWT
+    // 💣 Ce code vérifie le JWT, mais maintenant c'est le rôle de la gateway
     const authHeader = req.headers.authorization;
     const token = authHeader?.replace('Bearer ', '');
 
@@ -19,13 +25,25 @@ const authenticate = async (req: Request, res: Response, next: NextFunction): Pr
     }
 
     const decoded = jwt.verify(token, secret) as JwtPayload;
+    // 💣 FIN DU CODE À SUPPRIMER
+
+    // 👩‍🎓 TODO: NOUVEAU CODE - Lire l'ID utilisateur depuis le header X-User-ID
+    // 🤓 const userIdHeader = req.headers['x-user-id'];
+    // 🤓 Vérifiez que le header existe et est une string
+    // 🤓 Convertissez-le en nombre avec parseInt(userIdHeader, 10)
+    // 🤓 Vérifiez que c'est un nombre valide avec isNaN()
+    // 🤓 Si le header est absent ou invalide, retournez une erreur 401
+    // 💣 À IMPLÉMENTER ICI
+
+    // 💣 Remplacez decoded.userId par la variable userId que vous avez créée
+    const userId = decoded.userId; // 💣 À REMPLACER par votre code de lecture du header
 
     const result = await pool.query<UserWithSubscription>(`
       SELECT u.*, s.kind as subscription_kind, s.end_date
       FROM users u
       LEFT JOIN subscriptions s ON u.id = s.user_id AND s.active = true
       WHERE u.id = $1
-    `, [decoded.userId]);
+    `, [userId]);
 
     if (result.rows.length === 0) {
       res.status(401).json({ error: 'User not found' });
@@ -34,6 +52,7 @@ const authenticate = async (req: Request, res: Response, next: NextFunction): Pr
 
     const user = result.rows[0];
 
+    // 📣 Vérification de l'expiration de l'abonnement Max (ne pas modifier)
     if (user.subscription_kind === 'Max' && user.end_date && new Date(user.end_date) < new Date()) {
       await pool.query(`
         UPDATE subscriptions
@@ -59,6 +78,10 @@ const authenticate = async (req: Request, res: Response, next: NextFunction): Pr
 
 const optionalAuth = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   try {
+    // 👩‍🎓 EXERCICE : Modifier ce middleware pour lire l'ID utilisateur depuis le header X-User-ID
+    // 📣 Pour l'authentification optionnelle, l'absence du header signifie que l'utilisateur n'est pas authentifié
+
+    // 💣 ANCIEN CODE - À SUPPRIMER : Extraction et vérification du JWT
     const authHeader = req.headers.authorization;
     const token = authHeader?.replace('Bearer ', '');
 
@@ -74,12 +97,24 @@ const optionalAuth = async (req: Request, _res: Response, next: NextFunction): P
     }
 
     const decoded = jwt.verify(token, secret) as JwtPayload;
+    // 💣 FIN DU CODE À SUPPRIMER
+
+    // 👩‍🎓 TODO: NOUVEAU CODE - Lire l'ID utilisateur depuis le header X-User-ID
+    // 🤓 const userIdHeader = req.headers['x-user-id'];
+    // 🤓 Si le header est absent ou invalide, appelez next() sans définir req.user
+    // 🤓 Convertissez le header en nombre avec parseInt()
+    // 🤓 Si la conversion échoue (isNaN), appelez next() sans définir req.user
+    // 💣 À IMPLÉMENTER ICI
+
+    // 💣 Remplacez decoded.userId par la variable userId que vous avez créée
+    const userId = decoded.userId; // 💣 À REMPLACER par votre code de lecture du header
+
     const result = await pool.query<UserWithSubscription>(`
       SELECT u.*, s.kind as subscription_kind, s.end_date
       FROM users u
       LEFT JOIN subscriptions s ON u.id = s.user_id AND s.active = true
       WHERE u.id = $1
-    `, [decoded.userId]);
+    `, [userId]);
 
     if (result.rows.length > 0) {
       const user = result.rows[0];

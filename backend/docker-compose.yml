@@ -1,25 +1,20 @@
 version: '3.8'
-# 📣 Notez qu'au lieu d'avoir un service 'app', nous avons deux services distincts : 'gateway' et 'monolith'.
 services:
   gateway:
     build: gateway
     ports:
       - "3000:3000"
-    # 📣 Volumes pour activer le hot-reload
     volumes:
       - ./gateway/src:/app/src:ro
       - ./gateway/tsconfig.json:/app/tsconfig.json:ro
-      # 📣 Exclut node_modules pour éviter les conflits
       - /app/node_modules
     environment:
       - PORT=3000
       - NODE_ENV=development
-      # 👩‍🎓 Fournir l'URL du monolith au service gateway.
-      # 📜 https://docs.docker.com/compose/how-tos/networking/
-      - MONOLITH_URL=http://<service>:<port>
+      - MONOLITH_URL=http://monolith:3000
+      - JWT_SECRET=workshop_fake_secret_key
     depends_on:
       - monolith
-    # 📣 Le health check est un endpoint qui sera utilisé pour vérifier que le service est en bonne santé.
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/gateway/health"]
       interval: 3s
@@ -37,14 +32,11 @@ services:
 
   monolith:
     build: monolith
-    # 📣 Port exposé uniquement en interne, accessible via la gateway
     expose:
       - "3000"
-    # 📣 Volumes pour activer le hot-reload
     volumes:
       - ./monolith/src:/app/src:ro
       - ./monolith/tsconfig.json:/app/tsconfig.json:ro
-      # 📣 Exclut node_modules pour éviter les conflits
       - /app/node_modules
     environment:
       - DATABASE_URL=postgresql://courseuser:coursepass@monolith-db:5432/coursedb
@@ -68,7 +60,6 @@ services:
         reservations:
           cpus: '0.5'
           memory: 256M
-  # 📣 'db' s'appelle 'monolith-db' et gateway n'y accède pas directement
   monolith-db:
     image: postgres:15-alpine
     environment:
