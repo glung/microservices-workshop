@@ -60,7 +60,13 @@ export class AuthService {
         : null;
 
     // Utilisation du repository pour persister
-    /* 👩‍🎓 Créer un utilisateur avec le UserRepository  */
+    const user = await this.userRepository.create({
+      email,
+      password: hashedPassword,
+      name,
+      subscriptionKind,
+      endDate,
+    });
 
     // Génération du token JWT
     const token = jwt.sign({ userId: user.id }, this.jwtSecret);
@@ -84,7 +90,6 @@ export class AuthService {
 
     // Récupération de l'utilisateur avec son abonnement
     const user = await this.userRepository.findByEmailWithSubscription(email);
-    /* 👩‍🎓 Chercher l'utilisateur avec le UserRepository  */
 
     if (!user) {
       throw new Error("Invalid credentials");

@@ -89,7 +89,12 @@ router.post(
 
       // 📣 Utilisation du Service qui contient la logique métier
       const { email, password, name, subscriptionKind = "Free" } = req.body;
-      /* 👩‍🎓 Créer un utilisateur avec le AuthService  */
+      const result = await authService.register({
+        email,
+        password,
+        name,
+        subscriptionKind,
+      });
 
       // 🤖 Monitoring
       userRegistrations.inc({ subscription_kind: subscriptionKind });
@@ -173,7 +178,7 @@ router.post(
 
       // 📣 Utilisation du Service qui contient la logique métier
       const { email, password } = req.body;
-      /* 👩‍🎓 Login avec le AuthService  */
+      const result = await authService.login({ email, password });
 
       // 🤖 Monitoring
       authenticationAttempts.inc({ endpoint: "login", status: "success" });

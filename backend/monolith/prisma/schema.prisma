@@ -17,9 +17,10 @@ enum SubscriptionKind {
 
 model User {
   id            Int            @id @default(autoincrement())
-  created_at    DateTime       @default(now())
   email         String         @unique
-  // 👩‍🎓 Ajouter password et name
+  password      String
+  name          String
+  created_at    DateTime       @default(now())
   subscriptions Subscription[]
 
   @@map("users")
@@ -29,9 +30,9 @@ model Subscription {
   id         Int              @id @default(autoincrement())
   user_id    Int
   kind       SubscriptionKind @default(Free)
-  // 👩‍🎓 Ajouter start_date avec une valeur par default (now)
+  start_date DateTime         @default(now())
   end_date   DateTime?
-  // 👩‍🎓 Ajouter active avec une valeur par default (false)
+  active     Boolean          @default(true)
   user       User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, active])

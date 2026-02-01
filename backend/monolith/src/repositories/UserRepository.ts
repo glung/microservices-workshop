@@ -33,9 +33,7 @@ export class UserRepository {
    */
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({
-      where: {
-        /* 👩‍🎓 la clause where manquante  */
-      },
+      where: { email },
     });
   }
 
@@ -51,9 +49,7 @@ export class UserRepository {
       where: { email },
       include: {
         subscriptions: {
-          where: {
-            /* 👩‍🎓 la clause where manquante  */
-          },
+          where: { active: true },
           take: 1,
         },
       },
@@ -91,13 +87,17 @@ export class UserRepository {
     const result = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
-          /* 👩‍🎓 Ajouter les data  */
+          email,
+          password,
+          name,
         },
       });
 
       await tx.subscription.create({
         data: {
-          /* 👩‍🎓 Ajouter les data  */
+          user_id: user.id,
+          kind: subscriptionKind,
+          end_date: endDate,
         },
       });
 
@@ -118,7 +118,9 @@ export class UserRepository {
    * @returns L'utilisateur ou null si non trouvé
    */
   async findById(id: number): Promise<User | null> {
-    /* 👩‍🎓 Implémenter le find  */
+    return this.prisma.user.findUnique({
+      where: { id },
+    });
   }
 
   /**
@@ -130,7 +132,27 @@ export class UserRepository {
   async findByIdWithSubscription(
     id: number,
   ): Promise<UserWithSubscription | null> {
-    /* 👩‍🎓 Implémenter le find  (c.f. findByEmailWithSubscription) */
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        subscriptions: {
+          where: { active: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    const subscription = user.subscriptions[0];
+
+    return {
+      ...user,
+      subscription_kind: subscription?.kind || "Free",
+      end_date: subscription?.end_date,
+    };
   }
 
   /**
@@ -145,7 +167,7 @@ export class UserRepository {
         active: true,
       },
       data: {
-        /* 👩‍🎓 Ajouter la donnée à mettre à jour  */
+        active: false,
       },
     });
   }
