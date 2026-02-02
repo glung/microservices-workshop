@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { pool } from '../db';
-import { UserWithSubscription } from '../types/models';
+import { UserRepository } from '../repositories/UserRepository';
+
+const userRepository = new UserRepository();
 
 const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -20,27 +21,18 @@ const authenticate = async (req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
-    // 📣 Récupérer les données complètes de l'utilisateur depuis la base de données
-    const result = await pool.query<UserWithSubscription>(`
-      SELECT u.*, s.kind as subscription_kind, s.end_date
-      FROM users u
-      LEFT JOIN subscriptions s ON u.id = s.user_id AND s.active = true
-      WHERE u.id = $1
-    `, [userId]);
+    // 📜 Utilisation du Repository pour récupérer l'utilisateur avec son abonnement
+    const user = await userRepository.findByIdWithSubscription(userId);
 
-    if (result.rows.length === 0) {
+    if (!user) {
       res.status(401).json({ error: 'User not found' });
       return;
     }
 
-    const user = result.rows[0];
-
+    // 📣 Vérifier si l'abonnement Max a expiré
     if (user.subscription_kind === 'Max' && user.end_date && new Date(user.end_date) < new Date()) {
-      await pool.query(`
-        UPDATE subscriptions
-        SET active = false
-        WHERE user_id = $1 AND active = true
-      `, [user.id]);
+      // 👩‍🎓 Désactiver l'abonnement expiré via le repository
+      await userRepository.deactivateActiveSubscription(user.id);
       user.subscription_kind = 'Free';
     }
 
@@ -78,16 +70,10 @@ const optionalAuth = async (req: Request, _res: Response, next: NextFunction): P
       return;
     }
 
-    // 📣 Récupérer les données de l'utilisateur depuis la base de données
-    const result = await pool.query<UserWithSubscription>(`
-      SELECT u.*, s.kind as subscription_kind, s.end_date
-      FROM users u
-      LEFT JOIN subscriptions s ON u.id = s.user_id AND s.active = true
-      WHERE u.id = $1
-    `, [userId]);
+    // 📣 Récupérer les données de l'utilisateur avec le Repository
+    const user = await userRepository.findByIdWithSubscription(userId);
 
-    if (result.rows.length > 0) {
-      const user = result.rows[0];
+    if (user) {
       req.user = {
         id: user.id,
         email: user.email,

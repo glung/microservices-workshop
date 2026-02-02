@@ -43,3 +43,4 @@ coverage/
 
 .claude
 *.local.*
+*.local

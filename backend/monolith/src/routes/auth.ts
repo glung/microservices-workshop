@@ -1,11 +1,15 @@
-import express, { Request, Response } from 'express';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { pool } from '../db';
-import { User, SubscriptionKind, UserWithSubscription } from '../types/models';
-import { userRegistrations, userLogins, authenticationAttempts, errorTotal } from '../monitoring/metrics';
+import express, { Request, Response } from "express";
+import {
+  authenticationAttempts,
+  errorTotal,
+  userLogins,
+  userRegistrations,
+} from "../monitoring/metrics";
+import { AuthService } from "../services/AuthService";
+import { SubscriptionKind } from "../types/models";
 
 const router = express.Router();
+const authService = new AuthService();
 
 interface RegisterBody {
   email: string;
@@ -73,57 +77,38 @@ interface LoginBody {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/register', async (req: Request<object, object, RegisterBody>, res: Response): Promise<void> => {
-  try {
-    const { email, password, name, subscriptionKind = 'Free' } = req.body;
+router.post(
+  "/register",
+  async (
+    req: Request<object, object, RegisterBody>,
+    res: Response,
+  ): Promise<void> => {
+    try {
+      // 🤖 Monitoring
+      authenticationAttempts.inc({ endpoint: "register", status: "attempted" });
 
-    authenticationAttempts.inc({ endpoint: 'register', status: 'attempted' });
+      // 📣 Utilisation du Service qui contient la logique métier
+      const { email, password, name, subscriptionKind = "Free" } = req.body;
+      /* 👩‍🎓 Créer un utilisateur avec le AuthService  */
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+      // 🤖 Monitoring
+      userRegistrations.inc({ subscription_kind: subscriptionKind });
+      authenticationAttempts.inc({ endpoint: "register", status: "success" });
 
-    await pool.query('BEGIN');
-
-    const userResult = await pool.query<User>(
-      'INSERT INTO users (email, password, name) VALUES ($1, $2, $3) RETURNING id, email, name',
-      [email, hashedPassword, name]
-    );
-
-    const user = userResult.rows[0];
-
-    const endDate = subscriptionKind === 'Max'
-      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-      : null;
-
-    await pool.query(
-      'INSERT INTO subscriptions (user_id, kind, end_date) VALUES ($1, $2, $3)',
-      [user.id, subscriptionKind, endDate]
-    );
-
-    await pool.query('COMMIT');
-
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error('JWT_SECRET is not defined');
+      // 📣 Presentation
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      authenticationAttempts.inc({ endpoint: "register", status: "failed" });
+      errorTotal.inc({
+        type: "registration_error",
+        endpoint: "/api/auth/register",
+      });
+      res.status(400).json({ error: errorMessage });
     }
-
-    const token = jwt.sign({ userId: user.id }, secret);
-
-    userRegistrations.inc({ subscription_kind: subscriptionKind });
-    authenticationAttempts.inc({ endpoint: 'register', status: 'success' });
-
-    res.json({
-      user: { ...user, subscription_kind: subscriptionKind },
-      token
-    });
-  } catch (err) {
-    await pool.query('ROLLBACK');
-    console.error(err);
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    authenticationAttempts.inc({ endpoint: 'register', status: 'failed' });
-    errorTotal.inc({ type: 'registration_error', endpoint: '/api/auth/register' });
-    res.status(400).json({ error: errorMessage });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -176,62 +161,47 @@ router.post('/register', async (req: Request<object, object, RegisterBody>, res:
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/login', async (req: Request<object, object, LoginBody>, res: Response): Promise<void> => {
-  try {
-    const { email, password } = req.body;
+router.post(
+  "/login",
+  async (
+    req: Request<object, object, LoginBody>,
+    res: Response,
+  ): Promise<void> => {
+    try {
+      // 🤖 Monitoring
+      authenticationAttempts.inc({ endpoint: "login", status: "attempted" });
 
-    authenticationAttempts.inc({ endpoint: 'login', status: 'attempted' });
+      // 📣 Utilisation du Service qui contient la logique métier
+      const { email, password } = req.body;
+      /* 👩‍🎓 Login avec le AuthService  */
 
-    const result = await pool.query<UserWithSubscription>(
-      `SELECT u.*, s.kind as subscription_kind
-       FROM users u
-       LEFT JOIN subscriptions s ON u.id = s.user_id AND s.active = true
-       WHERE u.email = $1`,
-      [email]
-    );
+      // 🤖 Monitoring
+      authenticationAttempts.inc({ endpoint: "login", status: "success" });
+      userLogins.inc({ status: "success" });
 
-    if (result.rows.length === 0) {
-      authenticationAttempts.inc({ endpoint: 'login', status: 'failed' });
-      userLogins.inc({ status: 'failed' });
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
+      // 📣 Presentation
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+
+      // 🤓 Les erreurs d'authentification sont gérées différemment
+      if (errorMessage === "Invalid credentials") {
+        // 🤖 Monitoring
+        authenticationAttempts.inc({ endpoint: "login", status: "failed" });
+        userLogins.inc({ status: "failed" });
+
+        // 📣 Presentation
+        res.status(401).json({ error: errorMessage });
+      } else {
+        // 🤖 Monitoring
+        errorTotal.inc({ type: "login_error", endpoint: "/api/auth/login" });
+
+        // 📣 Presentation
+        res.status(500).json({ error: errorMessage });
+      }
     }
-
-    const user = result.rows[0];
-
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      authenticationAttempts.inc({ endpoint: 'login', status: 'failed' });
-      userLogins.inc({ status: 'failed' });
-      res.status(401).json({ error: 'Invalid credentials' });
-      return;
-    }
-
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error('JWT_SECRET is not defined');
-    }
-
-    const token = jwt.sign({ userId: user.id }, secret);
-
-    authenticationAttempts.inc({ endpoint: 'login', status: 'success' });
-    userLogins.inc({ status: 'success' });
-
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        subscription_kind: user.subscription_kind || 'Free'
-      },
-      token
-    });
-  } catch (err) {
-    console.error(err);
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    errorTotal.inc({ type: 'login_error', endpoint: '/api/auth/login' });
-    res.status(500).json({ error: errorMessage });
-  }
-});
+  },
+);
 
 export default router;

@@ -1,0 +1,4 @@
+.env
+node_modules
+# Ne pas versionner les fichiers générés par Prisma
+/src/generated/prisma

@@ -1,4 +1,4 @@
-export type SubscriptionKind = 'Free' | 'Max';
+export type SubscriptionKind = "Free" | "Max";
 
 export interface User {
   id: number;
@@ -33,10 +33,8 @@ export interface Like {
   created_at: Date;
 }
 
-export interface UserWithSubscription extends User {
-  subscription_kind: SubscriptionKind;
-  end_date?: Date | null;
-}
+// UserWithSubscription is now defined in repositories/UserRepository.ts
+export type { UserWithSubscription } from "../repositories/UserRepository";
 
 export interface CourseWithLikes extends Course {
   like_count: number;

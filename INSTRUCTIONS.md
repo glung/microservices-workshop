@@ -1,57 +1,4 @@
-# Exercice 1 : Ajouter une GATEWAY devant le service Monolithique
-
-## Objectif
-
-Créer une API Gateway qui agit comme point d'entrée unique pour toutes les requêtes vers notre plateforme. Pour l'instant, la gateway va simplement rediriger (proxy) toutes les requêtes vers le monolithe existant.
-
-- Reçoit toutes les requêtes des clients (Internet)
-- Les redirige vers les services appropriés
-
-```
-[Client] → [API Gateway] → [Monolithe]
-```
-
-## Découverte
-
-📣 Remarquez qu'il y a deux dashboards dans Grafana http://localhost:3001/
-
-📣 Remarquez que le code a maintenant deux services:
-
-- gateway
-- monolith
-
-📣 Examiner le code de la Gateway
-
-Points importants:
-
-- le code est incomplet
-- les tests "end to end" ont été déplacés dans gateway et testent l'intégration `[API Gateway] → [Monolithe]`
-
-Les tests nécessitent que les services Docker soient démarrés :
-
-**Démarrer les services**
-
-```bash
-cd backend
-docker-compose up -d
-```
-
-**Exécuter les tests**
-
-```bash
-cd gateway
-npm install
-npm test
-```
-
-## Instructions
-
-1. Compléter le fichier docker-compose.xml
-1. Compléter le code dans backend/gateway/src/index.ts
-
-Valider que les tests passent
-
-### Structure des fichiers d'exercices
+# Structure des fichiers d'exercices
 
 Chaque exercice utilise des emojis pour guider les étudiants :
 
@@ -60,9 +7,12 @@ Chaque exercice utilise des emojis pour guider les étudiants :
 - 📜 Lien vers la documentation
 - 💣 Avertissement de suppression de code
 
-## Deploiement & monitoring
+# Deploiement & monitoring
 
-Le service est déployé automatiquement.
+```bash
+cd backend
+docker compose up --build
+```
 
 Simuler un traffic en production
 
@@ -72,3 +22,16 @@ npm run start
 ```
 
 Monitorer à l'aide de Grafana: http://localhost:3001/
+
+# Instructions
+
+- définir les schema prisma dans `./backend/monolith/schema.prisma`
+- générer les types prisma `npx prisma generate`
+- Vérifier que les types `SubscriptionKind` et `User` sont définis dans `./backend/monolith/src/repositories/UserRepository.ts`
+- Compléter le repository (data layer) dans `./backend/monolith/src/repositories/UserRepository.ts`
+- Compléter le service (domain layer) dans `./backend/monolith/src/services/AuthService.ts`
+- Compléter le handler (presentation layer) dans `./backend/monolith/src/routes/auth.ts`
+
+options:
+
+- Ajouter tes tests unitaires au `AuthService`

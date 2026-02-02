@@ -1,23 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+
+// 📣 Mock du UserRepository avant d'importer le middleware
+const mockFindByIdWithSubscription = jest.fn();
+const mockDeactivateActiveSubscription = jest.fn();
+
+jest.mock('../../../repositories/UserRepository', () => {
+  return {
+    UserRepository: jest.fn().mockImplementation(() => {
+      return {
+        findByIdWithSubscription: mockFindByIdWithSubscription,
+        deactivateActiveSubscription: mockDeactivateActiveSubscription,
+      };
+    }),
+  };
+});
+
 import { authenticate, optionalAuth } from '../../../middleware/auth';
-
-// Mock dependencies
-jest.mock('../../../db', () => ({
-  pool: {
-    query: jest.fn()
-  }
-}));
-
-jest.mock('../../../monitoring/metrics', () => ({
-  authenticationAttempts: { inc: jest.fn() },
-  errorTotal: { inc: jest.fn() }
-}));
-
-import { pool } from '../../../db';
-const mockPool = pool as jest.Mocked<typeof pool> & {
-  query: jest.Mock;
-};
 
 describe('authenticate middleware', () => {
   let mockReq: Partial<Request>;
@@ -34,38 +32,30 @@ describe('authenticate middleware', () => {
     };
     mockNext = jest.fn();
     jest.clearAllMocks();
-    process.env.JWT_SECRET = 'test_secret';
   });
 
-  describe('when valid token is provided', () => {
+  describe('when valid X-User-ID is provided', () => {
     it('should attach user to request and call next', async () => {
       const userId = 1;
-      const token = jwt.sign({ userId }, 'test_secret');
 
       mockReq.headers = {
-        authorization: `Bearer ${token}`
+        'x-user-id': '1'
       };
 
-      mockPool.query.mockResolvedValueOnce({
-        rows: [{
-          id: userId,
-          email: 'test@example.com',
-          name: 'Test User',
-          subscription_kind: 'Free',
-          end_date: null
-        }],
-        command: '',
-        oid: 0,
-        rowCount: 1,
-        fields: []
-      } as any);
+      mockFindByIdWithSubscription.mockResolvedValue({
+        id: userId,
+        email: 'test@example.com',
+        name: 'Test User',
+        subscription_kind: 'Free',
+        end_date: null,
+        password: 'hashed',
+        created_at: new Date(),
+        updated_at: new Date()
+      });
 
       await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT u.*'),
-        [userId]
-      );
+      expect(mockFindByIdWithSubscription).toHaveBeenCalledWith(userId);
       expect(mockReq.user).toEqual({
         id: userId,
         email: 'test@example.com',
@@ -77,7 +67,7 @@ describe('authenticate middleware', () => {
     });
   });
 
-  describe('when token is missing', () => {
+  describe('when X-User-ID header is missing', () => {
     it('should return 401 error', async () => {
       mockReq.headers = {};
 
@@ -91,17 +81,17 @@ describe('authenticate middleware', () => {
     });
   });
 
-  describe('when token is invalid', () => {
+  describe('when X-User-ID is invalid', () => {
     it('should return 401 error', async () => {
       mockReq.headers = {
-        authorization: 'Bearer invalid_token'
+        'x-user-id': 'invalid'
       };
 
       await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'Invalid token'
+        error: 'Invalid user ID'
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -109,20 +99,11 @@ describe('authenticate middleware', () => {
 
   describe('when user not found in database', () => {
     it('should return 401 error', async () => {
-      const userId = 999;
-      const token = jwt.sign({ userId }, 'test_secret');
-
       mockReq.headers = {
-        authorization: `Bearer ${token}`
+        'x-user-id': '999'
       };
 
-      mockPool.query.mockResolvedValueOnce({
-        rows: [],
-        command: '',
-        oid: 0,
-        rowCount: 0,
-        fields: []
-      } as any);
+      mockFindByIdWithSubscription.mockResolvedValue(null);
 
       await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
@@ -136,41 +117,28 @@ describe('authenticate middleware', () => {
   describe('when Max subscription is expired', () => {
     it('should downgrade to Free subscription', async () => {
       const userId = 1;
-      const token = jwt.sign({ userId }, 'test_secret');
       const expiredDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // Yesterday
 
       mockReq.headers = {
-        authorization: `Bearer ${token}`
+        'x-user-id': '1'
       };
 
-      mockPool.query
-        .mockResolvedValueOnce({
-          rows: [{
-            id: userId,
-            email: 'test@example.com',
-            name: 'Test User',
-            subscription_kind: 'Max',
-            end_date: expiredDate
-          }],
-          command: '',
-          oid: 0,
-          rowCount: 1,
-          fields: []
-        } as any)
-        .mockResolvedValueOnce({
-          rows: [],
-          command: '',
-          oid: 0,
-          rowCount: 1,
-          fields: []
-        } as any);
+      mockFindByIdWithSubscription.mockResolvedValue({
+        id: userId,
+        email: 'test@example.com',
+        name: 'Test User',
+        subscription_kind: 'Max',
+        end_date: expiredDate,
+        password: 'hashed',
+        created_at: new Date(),
+        updated_at: new Date()
+      });
+
+      mockDeactivateActiveSubscription.mockResolvedValue(undefined);
 
       await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE subscriptions'),
-        [userId]
-      );
+      expect(mockDeactivateActiveSubscription).toHaveBeenCalledWith(userId);
       expect(mockReq.user?.subscription_kind).toBe('Free');
       expect(mockNext).toHaveBeenCalled();
     });
@@ -189,37 +157,32 @@ describe('optionalAuth middleware', () => {
     mockRes = {};
     mockNext = jest.fn();
     jest.clearAllMocks();
-    process.env.JWT_SECRET = 'test_secret';
   });
 
-  it('should call next without attaching user when no token', async () => {
+  it('should call next without attaching user when no X-User-ID header', async () => {
     await optionalAuth(mockReq as Request, mockRes as Response, mockNext);
 
     expect(mockReq.user).toBeUndefined();
     expect(mockNext).toHaveBeenCalled();
   });
 
-  it('should attach user when valid token provided', async () => {
+  it('should attach user when valid X-User-ID provided', async () => {
     const userId = 1;
-    const token = jwt.sign({ userId }, 'test_secret');
 
     mockReq.headers = {
-      authorization: `Bearer ${token}`
+      'x-user-id': '1'
     };
 
-    mockPool.query.mockResolvedValueOnce({
-      rows: [{
-        id: userId,
-        email: 'test@example.com',
-        name: 'Test User',
-        subscription_kind: 'Max',
-        end_date: null
-      }],
-      command: '',
-      oid: 0,
-      rowCount: 1,
-      fields: []
-    } as any);
+    mockFindByIdWithSubscription.mockResolvedValue({
+      id: userId,
+      email: 'test@example.com',
+      name: 'Test User',
+      subscription_kind: 'Max',
+      end_date: null,
+      password: 'hashed',
+      created_at: new Date(),
+      updated_at: new Date()
+    });
 
     await optionalAuth(mockReq as Request, mockRes as Response, mockNext);
 
@@ -228,9 +191,9 @@ describe('optionalAuth middleware', () => {
     expect(mockNext).toHaveBeenCalled();
   });
 
-  it('should call next without user when token is invalid', async () => {
+  it('should call next without user when X-User-ID is invalid', async () => {
     mockReq.headers = {
-      authorization: 'Bearer invalid_token'
+      'x-user-id': 'invalid'
     };
 
     await optionalAuth(mockReq as Request, mockRes as Response, mockNext);

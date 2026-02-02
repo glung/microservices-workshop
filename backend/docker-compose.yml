@@ -1,11 +1,11 @@
 version: '3.8'
-# 📣 Notez qu'au lieu d'avoir un service 'app', nous avons deux services distincts : 'gateway' et 'monolith'.
 services:
+  # --- Le service monolithique
   gateway:
     build: gateway
     ports:
       - "3000:3000"
-    # 📣 Volumes pour activer le hot-reload
+    # 🤓 Volumes pour activer le hot-reload (ignorer)
     volumes:
       - ./gateway/src:/app/src:ro
       - ./gateway/tsconfig.json:/app/tsconfig.json:ro
@@ -14,11 +14,11 @@ services:
     environment:
       - PORT=3000
       - NODE_ENV=development
-      # 👩‍🎓 Fournir l'URL du monolith au service gateway.
-      # 📜 https://docs.docker.com/compose/how-tos/networking/
-      - MONOLITH_URL=http://<service>:<port>
+      - JWT_SECRET=workshop_fake_secret_key
+      - MONOLITH_URL=http://monolith:3000
     depends_on:
-      - monolith
+      monolith:
+        condition: service_healthy
     # 📣 Le health check est un endpoint qui sera utilisé pour vérifier que le service est en bonne santé.
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/gateway/health"]
@@ -34,17 +34,17 @@ services:
         reservations:
           cpus: '0.5'
           memory: 256M
-
+  # --- Le service monolith et sa base de données
   monolith:
     build: monolith
     # 📣 Port exposé uniquement en interne, accessible via la gateway
     expose:
       - "3000"
-    # 📣 Volumes pour activer le hot-reload
+    # 🤓 Volumes pour activer le hot-reload (ignorer)
     volumes:
       - ./monolith/src:/app/src:ro
       - ./monolith/tsconfig.json:/app/tsconfig.json:ro
-      # 📣 Exclut node_modules pour éviter les conflits
+      # Exclut node_modules pour éviter les conflits
       - /app/node_modules
     environment:
       - DATABASE_URL=postgresql://courseuser:coursepass@monolith-db:5432/coursedb
@@ -68,7 +68,6 @@ services:
         reservations:
           cpus: '0.5'
           memory: 256M
-  # 📣 'db' s'appelle 'monolith-db' et gateway n'y accède pas directement
   monolith-db:
     image: postgres:15-alpine
     environment:
@@ -93,6 +92,7 @@ services:
           cpus: '0.25'
           memory: 128M
 
+  # --- Monitoring end to end
   prometheus:
     image: prom/prometheus:latest
     ports:
