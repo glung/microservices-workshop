@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { createTestApp } from '../helpers/testApp';
+import { createTestApp } from '../../helpers/testApp';
 
 const app = createTestApp();
 

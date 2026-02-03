@@ -4,9 +4,9 @@ import {
   errorTotal,
   userLogins,
   userRegistrations,
-} from "../monitoring/metrics";
+} from "../../monitoring/metrics";
 import { AuthService } from "../services/AuthService";
-import { SubscriptionKind } from "../types/models";
+import { SubscriptionKind } from "../../types/models";
 
 const router = express.Router();
 const authService = new AuthService();

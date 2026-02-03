@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 // 📣 Mock du AuthService avant d'importer le middleware
 const mockAuthenticateUserById = jest.fn();
 
-jest.mock('../../../services/AuthService', () => {
+jest.mock('../../../../auth/services/AuthService', () => {
   return {
     AuthService: jest.fn().mockImplementation(() => {
       return {
@@ -13,7 +13,7 @@ jest.mock('../../../services/AuthService', () => {
   };
 });
 
-import { authenticate, optionalAuth } from '../../../middleware/auth';
+import { authenticate, optionalAuth } from '../../../../auth/middleware/auth';
 
 describe('authenticate middleware', () => {
   let mockReq: Partial<Request>;

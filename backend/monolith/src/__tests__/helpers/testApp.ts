@@ -31,7 +31,7 @@ jest.mock('../../db', () => {
   };
 });
 
-import authRoutes from '../../routes/auth';
+import authRoutes from '../../auth/routes/auth';
 import catalogRoutes from '../../routes/catalog';
 import coursesRoutes from '../../routes/courses';
 import accountsRoutes from '../../routes/accounts';
