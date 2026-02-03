@@ -1,10 +1,10 @@
-import express, { Request, Response } from 'express';
-import { pool } from '../db';
-import { authenticate } from '../auth/middleware/auth';
-import { CourseWithLikedAt } from '../types/models';
-import { subscriptionUpgrades, errorTotal } from '../monitoring/metrics';
+import express, { Request, Response } from "express";
+import { authenticate } from "../../auth/middleware/auth";
+import { subscriptionUpgrades, errorTotal } from "../../monitoring/metrics";
+import { AccountService } from "../services/AccountService";
 
 const router = express.Router();
+const accountService = new AccountService();
 
 /**
  * @swagger
@@ -55,33 +55,28 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/me', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
-    const accountInfo = {
-      user: {
-        id: req.user.id,
-        email: req.user.email,
-        name: req.user.name
-      },
-      subscription: {
-        kind: req.user.subscription_kind || 'Free',
-        end_date: req.user.end_date
+router.get(
+  "/me",
+  authenticate,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: "Authentication required" });
+        return;
       }
-    };
 
-    res.json(accountInfo);
-  } catch (err) {
-    console.error(err);
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    errorTotal.inc({ type: 'account_info_error', endpoint: '/api/accounts/me' });
-    res.status(500).json({ error: errorMessage });
-  }
-});
+      // 📣 Utilisation du Service qui contient la logique métier
+      const accountInfo = accountService.getAccountInfo(req.user);
+
+      res.json(accountInfo);
+    } catch (err) {
+      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      errorTotal.inc({ type: "account_info_error", endpoint: "/api/accounts/me" });
+      res.status(500).json({ error: errorMessage });
+    }
+  },
+);
 
 /**
  * @swagger
@@ -124,29 +119,28 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/likes', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
+router.get(
+  "/likes",
+  authenticate,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: "Authentication required" });
+        return;
+      }
+
+      // 📣 Utilisation du Service pour récupérer les cours likés
+      const likedCourses = await accountService.getLikedCourses(req.user.id);
+
+      res.json({ liked_courses: likedCourses });
+    } catch (err) {
+      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      errorTotal.inc({ type: "likes_fetch_error", endpoint: "/api/accounts/likes" });
+      res.status(500).json({ error: errorMessage });
     }
-
-    const result = await pool.query<CourseWithLikedAt>(`
-      SELECT c.*, l.created_at as liked_at
-      FROM likes l
-      JOIN courses c ON l.course_id = c.id
-      WHERE l.user_id = $1
-      ORDER BY l.created_at DESC
-    `, [req.user.id]);
-
-    res.json({ liked_courses: result.rows });
-  } catch (err) {
-    console.error(err);
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    errorTotal.inc({ type: 'likes_fetch_error', endpoint: '/api/accounts/likes' });
-    res.status(500).json({ error: errorMessage });
-  }
-});
+  },
+);
 
 /**
  * @swagger
@@ -196,49 +190,42 @@ router.get('/likes', authenticate, async (req: Request, res: Response): Promise<
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/upgrade', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    if (!req.user) {
-      res.status(401).json({ error: 'Authentication required' });
-      return;
-    }
-
-    if (req.user.subscription_kind === 'Max') {
-      res.status(400).json({ error: 'Already have Max subscription' });
-      return;
-    }
-
-    await pool.query('BEGIN');
-
-    await pool.query(
-      'UPDATE subscriptions SET active = false WHERE user_id = $1',
-      [req.user.id]
-    );
-
-    const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    await pool.query(
-      'INSERT INTO subscriptions (user_id, kind, end_date) VALUES ($1, $2, $3)',
-      [req.user.id, 'Max', endDate]
-    );
-
-    await pool.query('COMMIT');
-
-    subscriptionUpgrades.inc();
-
-    res.json({
-      success: true,
-      subscription: {
-        kind: 'Max',
-        end_date: endDate
+router.post(
+  "/upgrade",
+  authenticate,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: "Authentication required" });
+        return;
       }
-    });
-  } catch (err) {
-    await pool.query('ROLLBACK');
-    console.error(err);
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    errorTotal.inc({ type: 'upgrade_error', endpoint: '/api/accounts/upgrade' });
-    res.status(500).json({ error: errorMessage });
-  }
-});
+
+      // 📣 Utilisation du Service qui contient la logique métier
+      const subscription = await accountService.upgradeSubscription(
+        req.user.id,
+        req.user.subscription_kind,
+      );
+
+      // 🤖 Monitoring
+      subscriptionUpgrades.inc();
+
+      res.json({
+        success: true,
+        subscription,
+      });
+    } catch (err) {
+      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+
+      // 🤓 Gestion spécifique de l'erreur "Already have Max"
+      if (errorMessage === "Already have Max subscription") {
+        res.status(400).json({ error: errorMessage });
+      } else {
+        errorTotal.inc({ type: "upgrade_error", endpoint: "/api/accounts/upgrade" });
+        res.status(500).json({ error: errorMessage });
+      }
+    }
+  },
+);
 
 export default router;

@@ -34,7 +34,7 @@ jest.mock('../../db', () => {
 import authRoutes from '../../auth/routes/auth';
 import catalogRoutes from '../../routes/catalog';
 import coursesRoutes from '../../routes/courses';
-import accountsRoutes from '../../routes/accounts';
+import accountsRoutes from '../../accounts/routes/accounts';
 
 export const createTestApp = () => {
   const app = express();
