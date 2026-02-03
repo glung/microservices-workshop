@@ -1,10 +1,10 @@
-import express, { Request, Response } from 'express';
-import { pool } from '../db';
-import { optionalAuth } from '../auth/middleware/auth';
-import { CourseWithLikes } from '../types/models';
-import { catalogViews, errorTotal } from '../monitoring/metrics';
+import express, { Request, Response } from "express";
+import { optionalAuth } from "../../auth/middleware/auth";
+import { catalogViews, errorTotal } from "../../monitoring/metrics";
+import { CourseService } from "../services/CourseService";
 
 const router = express.Router();
+const courseService = new CourseService();
 
 /**
  * @swagger
@@ -44,48 +44,25 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/', optionalAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    catalogViews.inc({ authenticated: req.user ? 'true' : 'false' });
+router.get(
+  "/",
+  optionalAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      // 🤖 Monitoring
+      catalogViews.inc({ authenticated: req.user ? "true" : "false" });
 
-    let query = `
-      SELECT
-        c.id,
-        c.name,
-        c.author,
-        c.kind,
-        c.created_at,
-        COUNT(l.id) as like_count
-    `;
+      // 📣 Utilisation du Service pour récupérer le catalogue
+      const courses = await courseService.listAllCourses(req.user?.id);
 
-    if (req.user) {
-      query += `,
-        EXISTS(
-          SELECT 1 FROM likes
-          WHERE course_id = c.id AND user_id = $1
-        ) as is_liked
-      `;
+      res.json({ courses });
+    } catch (err) {
+      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      errorTotal.inc({ type: "catalog_error", endpoint: "/api/catalog" });
+      res.status(500).json({ error: errorMessage });
     }
-
-    query += `
-      FROM courses c
-      LEFT JOIN likes l ON c.id = l.course_id
-      GROUP BY c.id
-      ORDER BY c.created_at DESC
-    `;
-
-    const result = await pool.query<CourseWithLikes>(
-      query,
-      req.user ? [req.user.id] : []
-    );
-
-    res.json({ courses: result.rows });
-  } catch (err) {
-    console.error(err);
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    errorTotal.inc({ type: 'catalog_error', endpoint: '/api/catalog' });
-    res.status(500).json({ error: errorMessage });
-  }
-});
+  },
+);
 
 export default router;
