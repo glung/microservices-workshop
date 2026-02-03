@@ -1,15 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 
-// 📣 Mock du UserRepository avant d'importer le middleware
-const mockFindByIdWithSubscription = jest.fn();
-const mockDeactivateActiveSubscription = jest.fn();
+// 📣 Mock du AuthService avant d'importer le middleware
+const mockAuthenticateUserById = jest.fn();
 
-jest.mock('../../../repositories/UserRepository', () => {
+jest.mock('../../../services/AuthService', () => {
   return {
-    UserRepository: jest.fn().mockImplementation(() => {
+    AuthService: jest.fn().mockImplementation(() => {
       return {
-        findByIdWithSubscription: mockFindByIdWithSubscription,
-        deactivateActiveSubscription: mockDeactivateActiveSubscription,
+        authenticateUserById: mockAuthenticateUserById,
       };
     }),
   };
@@ -42,20 +40,17 @@ describe('authenticate middleware', () => {
         'x-user-id': '1'
       };
 
-      mockFindByIdWithSubscription.mockResolvedValue({
+      mockAuthenticateUserById.mockResolvedValue({
         id: userId,
         email: 'test@example.com',
         name: 'Test User',
         subscription_kind: 'Free',
-        end_date: null,
-        password: 'hashed',
-        created_at: new Date(),
-        updated_at: new Date()
+        end_date: null
       });
 
       await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockFindByIdWithSubscription).toHaveBeenCalledWith(userId);
+      expect(mockAuthenticateUserById).toHaveBeenCalledWith(userId);
       expect(mockReq.user).toEqual({
         id: userId,
         email: 'test@example.com',
@@ -103,7 +98,7 @@ describe('authenticate middleware', () => {
         'x-user-id': '999'
       };
 
-      mockFindByIdWithSubscription.mockResolvedValue(null);
+      mockAuthenticateUserById.mockResolvedValue(null);
 
       await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
@@ -115,30 +110,25 @@ describe('authenticate middleware', () => {
   });
 
   describe('when Max subscription is expired', () => {
-    it('should downgrade to Free subscription', async () => {
+    it('should downgrade to Free subscription (handled by AuthService)', async () => {
       const userId = 1;
-      const expiredDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // Yesterday
 
       mockReq.headers = {
         'x-user-id': '1'
       };
 
-      mockFindByIdWithSubscription.mockResolvedValue({
+      // 📣 Le AuthService gère maintenant l'expiration et retourne Free
+      mockAuthenticateUserById.mockResolvedValue({
         id: userId,
         email: 'test@example.com',
         name: 'Test User',
-        subscription_kind: 'Max',
-        end_date: expiredDate,
-        password: 'hashed',
-        created_at: new Date(),
-        updated_at: new Date()
+        subscription_kind: 'Free',
+        end_date: null
       });
-
-      mockDeactivateActiveSubscription.mockResolvedValue(undefined);
 
       await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockDeactivateActiveSubscription).toHaveBeenCalledWith(userId);
+      expect(mockAuthenticateUserById).toHaveBeenCalledWith(userId);
       expect(mockReq.user?.subscription_kind).toBe('Free');
       expect(mockNext).toHaveBeenCalled();
     });
@@ -173,15 +163,12 @@ describe('optionalAuth middleware', () => {
       'x-user-id': '1'
     };
 
-    mockFindByIdWithSubscription.mockResolvedValue({
+    mockAuthenticateUserById.mockResolvedValue({
       id: userId,
       email: 'test@example.com',
       name: 'Test User',
       subscription_kind: 'Max',
-      end_date: null,
-      password: 'hashed',
-      created_at: new Date(),
-      updated_at: new Date()
+      end_date: null
     });
 
     await optionalAuth(mockReq as Request, mockRes as Response, mockNext);
