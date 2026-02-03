@@ -6,10 +6,10 @@
     "start": "node dist/index.js",
     "postinstall": "prisma generate",
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
-    "test": "NODE_ENV=test jest --runInBand",
-    "test:watch": "NODE_ENV=test jest --watch",
-    "test:unit": "NODE_ENV=test jest --testPathPatterns=\\.unit\\.test\\.ts$",
-    "test:e2e": "NODE_ENV=test jest --testPathPatterns=\\.e2e\\.test\\.ts$"
+    "test": "npx jest --runInBand",
+    "test:watch": "npx jest --watch",
+    "test:unit": "npx jest --testPathPatterns=\\.unit\\.test\\.ts$",
+    "test:e2e": "npx jest --testPathPatterns=\\.e2e\\.test\\.ts$"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
