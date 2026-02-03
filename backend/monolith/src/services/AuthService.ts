@@ -114,4 +114,36 @@ export class AuthService {
       token,
     };
   }
+
+  /**
+   * Authentifie un utilisateur par son ID (utilisé par le middleware)
+   * Gère automatiquement l'expiration des abonnements Max
+   */
+  async authenticateUserById(userId: number) {
+    // Récupération de l'utilisateur avec son abonnement
+    const user = await this.userRepository.findByIdWithSubscription(userId);
+
+    if (!user) {
+      return null;
+    }
+
+    // 🤓 Règle métier: vérifier si l'abonnement Max a expiré
+    if (
+      user.subscription_kind === "Max" &&
+      user.end_date &&
+      new Date(user.end_date) < new Date()
+    ) {
+      // Désactiver l'abonnement expiré
+      await this.userRepository.deactivateActiveSubscription(user.id);
+      user.subscription_kind = "Free";
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      subscription_kind: user.subscription_kind || "Free",
+      end_date: user.end_date || null,
+    };
+  }
 }

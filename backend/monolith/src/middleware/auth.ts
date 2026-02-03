@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { UserRepository } from '../repositories/UserRepository';
+import { AuthService } from '../services/AuthService';
 
-const userRepository = new UserRepository();
+const authService = new AuthService();
 
 const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -21,28 +21,16 @@ const authenticate = async (req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
-    // 📜 Utilisation du Repository pour récupérer l'utilisateur avec son abonnement
-    const user = await userRepository.findByIdWithSubscription(userId);
+    // 📜 Utilisation du Service pour authentifier l'utilisateur
+    // Le service gère la logique métier (vérification d'expiration d'abonnement)
+    const user = await authService.authenticateUserById(userId);
 
     if (!user) {
       res.status(401).json({ error: 'User not found' });
       return;
     }
 
-    // 📣 Vérifier si l'abonnement Max a expiré
-    if (user.subscription_kind === 'Max' && user.end_date && new Date(user.end_date) < new Date()) {
-      // 👩‍🎓 Désactiver l'abonnement expiré via le repository
-      await userRepository.deactivateActiveSubscription(user.id);
-      user.subscription_kind = 'Free';
-    }
-
-    req.user = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      subscription_kind: user.subscription_kind || 'Free',
-      end_date: user.end_date || null
-    };
+    req.user = user;
 
     next();
   } catch (err) {
@@ -70,17 +58,11 @@ const optionalAuth = async (req: Request, _res: Response, next: NextFunction): P
       return;
     }
 
-    // 📣 Récupérer les données de l'utilisateur avec le Repository
-    const user = await userRepository.findByIdWithSubscription(userId);
+    // 📣 Récupérer les données de l'utilisateur avec le Service
+    const user = await authService.authenticateUserById(userId);
 
     if (user) {
-      req.user = {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        subscription_kind: user.subscription_kind || 'Free',
-        end_date: user.end_date || null
-      };
+      req.user = user;
     }
   } catch (err) {
     // Invalid token, continue without user
