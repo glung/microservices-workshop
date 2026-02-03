@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { pool } from '../db';
-import { authenticate } from '../middleware/auth';
+import { authenticate } from '../auth/middleware/auth';
 import { CourseWithLikedAt } from '../types/models';
 import { subscriptionUpgrades, errorTotal } from '../monitoring/metrics';
 

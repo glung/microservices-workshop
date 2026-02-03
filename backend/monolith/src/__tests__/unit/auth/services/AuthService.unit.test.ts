@@ -1,12 +1,12 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { UserRepository } from "../../../repositories/UserRepository";
+import { UserRepository } from "../../../../auth/repositories/UserRepository";
 import {
   AuthService,
   LoginData,
   RegisterData,
-} from "../../../services/AuthService";
-import { SubscriptionKind } from "../../../types/models";
+} from "../../../../auth/services/AuthService";
+import { SubscriptionKind } from "../../../../types/models";
 
 describe("AuthService", () => {
   let authService: AuthService;

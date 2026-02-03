@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { UserRepository } from "../repositories/UserRepository";
-import { SubscriptionKind } from "../types/models";
+import { SubscriptionKind } from "../../types/models";
 
 /**
  * Le Service contient la logique métier (Domain/Application Layer)

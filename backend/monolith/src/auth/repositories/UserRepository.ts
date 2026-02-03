@@ -1,5 +1,5 @@
 import { PrismaClient, SubscriptionKind, User } from "@prisma/client";
-import { prisma as defaultPrisma } from "../prisma";
+import { prisma as defaultPrisma } from "../../prisma";
 
 /**
  * 📣 Le Repository agit comme une collection en mémoire d'objets métier.
