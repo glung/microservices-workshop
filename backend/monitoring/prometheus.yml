@@ -22,3 +22,12 @@ scrape_configs:
           environment: "development"
     metrics_path: "/metrics"
     scrape_interval: 5s
+
+  # - job_name: "course-platform-template"
+  #   static_configs:
+  #     - targets: ["template:3000"]
+  #       labels:
+  #         service: "template"
+  #         environment: "development"
+  #   metrics_path: "/metrics"
+  #   scrape_interval: 5s

@@ -34,6 +34,59 @@ services:
         reservations:
           cpus: '0.5'
           memory: 256M
+  # --- Template service (copy and customize)
+  # template:
+  #   build: __template__
+  #   expose:
+  #     - "3000"
+  #   volumes:
+  #     - ./__template__/src:/app/src:ro
+  #     - ./__template__/tsconfig.json:/app/tsconfig.json:ro
+  #     - /app/node_modules
+  #   environment:
+  #     - DATABASE_URL=postgresql://courseuser:coursepass@template-db:5432/templatedb
+  #     - PORT=3000
+  #     - NODE_ENV=development
+  #   depends_on:
+  #     template-db:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+  #     interval: 3s
+  #     timeout: 1s
+  #     retries: 3
+  #     start_period: 1s
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1.0'
+  #         memory: 512M
+  #       reservations:
+  #         cpus: '0.5'
+  #         memory: 256M
+  # template-db:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     - POSTGRES_USER=courseuser
+  #     - POSTGRES_PASSWORD=coursepass
+  #     - POSTGRES_DB=templatedb
+  #   ports:
+  #     - "5433:5432"
+  #   volumes:
+  #     - template_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U courseuser -d templatedb"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1.0'
+  #         memory: 512M
+  #       reservations:
+  #         cpus: '0.25'
+  #         memory: 128M
   # --- Le service monolith et sa base de données
   monolith:
     build: monolith
@@ -127,4 +180,3 @@ volumes:
   postgres_data:
   prometheus_data:
   grafana_data:
-
