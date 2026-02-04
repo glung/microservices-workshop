@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { UserRepository } from "../../../../auth/repositories/UserRepository";
+import { UserRepository } from "../../../../users/repositories/UserRepository";
 import {
   AuthService,
   LoginData,
