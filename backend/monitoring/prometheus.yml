@@ -23,6 +23,33 @@ scrape_configs:
     metrics_path: "/metrics"
     scrape_interval: 5s
 
+  - job_name: "course-platform-users"
+    static_configs:
+      - targets: ["users:3000"]
+        labels:
+          service: "users"
+          environment: "development"
+    metrics_path: "/metrics"
+    scrape_interval: 5s
+
+  - job_name: "course-platform-accounts"
+    static_configs:
+      - targets: ["accounts:3000"]
+        labels:
+          service: "accounts"
+          environment: "development"
+    metrics_path: "/metrics"
+    scrape_interval: 5s
+
+  - job_name: "course-platform-courses"
+    static_configs:
+      - targets: ["courses:3000"]
+        labels:
+          service: "courses"
+          environment: "development"
+    metrics_path: "/metrics"
+    scrape_interval: 5s
+
   # - job_name: "course-platform-template"
   #   static_configs:
   #     - targets: ["template:3000"]

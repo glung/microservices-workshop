@@ -32,9 +32,6 @@ jest.mock('../../db', () => {
   };
 });
 
-import catalogRoutes from '../../courses/routes/catalog';
-import coursesRoutes from '../../courses/routes/courses';
-
 export const createTestApp = () => {
   const app = express();
   app.use(express.json());
@@ -59,9 +56,6 @@ export const createTestApp = () => {
 
     next();
   });
-
-  app.use('/api/catalog', catalogRoutes);
-  app.use('/api/courses', coursesRoutes);
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'healthy', service: 'monolith' });

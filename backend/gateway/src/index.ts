@@ -10,6 +10,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const MONOLITH_URL = process.env.MONOLITH_URL;
 const USERS_URL = process.env.USERS_URL;
 const ACCOUNTS_URL = process.env.ACCOUNTS_URL;
+const COURSES_URL = process.env.COURSES_URL;
 
 if (!MONOLITH_URL) {
   throw new Error("MONOLITH_URL is not defined");
@@ -21,6 +22,10 @@ if (!USERS_URL) {
 
 if (!ACCOUNTS_URL) {
   throw new Error("ACCOUNTS_URL is not defined");
+}
+
+if (!COURSES_URL) {
+  throw new Error("COURSES_URL is not defined");
 }
 
 app.use(metricsMiddleware);
@@ -129,6 +134,22 @@ app.use(
   "/api/accounts",
   createProxyMiddleware({
     target: ACCOUNTS_URL,
+    changeOrigin: true,
+  }),
+);
+
+app.use(
+  "/api/catalog",
+  createProxyMiddleware({
+    target: COURSES_URL,
+    changeOrigin: true,
+  }),
+);
+
+app.use(
+  "/api/courses",
+  createProxyMiddleware({
+    target: COURSES_URL,
     changeOrigin: true,
   }),
 );
