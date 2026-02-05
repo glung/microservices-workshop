@@ -9,6 +9,7 @@ const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const MONOLITH_URL = process.env.MONOLITH_URL;
 const USERS_URL = process.env.USERS_URL;
+const ACCOUNTS_URL = process.env.ACCOUNTS_URL;
 
 if (!MONOLITH_URL) {
   throw new Error("MONOLITH_URL is not defined");
@@ -16,6 +17,10 @@ if (!MONOLITH_URL) {
 
 if (!USERS_URL) {
   throw new Error("USERS_URL is not defined");
+}
+
+if (!ACCOUNTS_URL) {
+  throw new Error("ACCOUNTS_URL is not defined");
 }
 
 app.use(metricsMiddleware);
@@ -116,6 +121,14 @@ app.use(
   "/api/auth",
   createProxyMiddleware({
     target: USERS_URL,
+    changeOrigin: true,
+  }),
+);
+
+app.use(
+  "/api/accounts",
+  createProxyMiddleware({
+    target: ACCOUNTS_URL,
     changeOrigin: true,
   }),
 );

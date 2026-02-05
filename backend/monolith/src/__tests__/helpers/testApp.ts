@@ -34,7 +34,6 @@ jest.mock('../../db', () => {
 
 import catalogRoutes from '../../courses/routes/catalog';
 import coursesRoutes from '../../courses/routes/courses';
-import accountsRoutes from '../../accounts/routes/accounts';
 
 export const createTestApp = () => {
   const app = express();
@@ -63,7 +62,6 @@ export const createTestApp = () => {
 
   app.use('/api/catalog', catalogRoutes);
   app.use('/api/courses', coursesRoutes);
-  app.use('/api/accounts', accountsRoutes);
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'healthy', service: 'monolith' });

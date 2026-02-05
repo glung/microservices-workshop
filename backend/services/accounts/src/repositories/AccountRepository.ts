@@ -1,10 +1,5 @@
 import { PrismaClient, SubscriptionKind } from "@prisma/client";
-import { prisma as defaultPrisma } from "../../prisma";
-
-/**
- * 📣 Le Repository gère l'accès aux données du domaine Account
- * Il abstrait la persistance pour le domaine métier
- */
+import { prisma as defaultPrisma } from "../prisma";
 
 export interface LikedCourse {
   id: number;
@@ -18,17 +13,11 @@ export interface LikedCourse {
 export class AccountRepository {
   private prisma: PrismaClient;
 
-  constructor(prisma?: PrismaClient) {
-    this.prisma = prisma || defaultPrisma;
+  constructor(prismaClient?: PrismaClient) {
+    this.prisma = prismaClient || defaultPrisma;
   }
 
-  /**
-   * Récupère les cours likés par un utilisateur
-   * @param userId - L'ID de l'utilisateur
-   * @returns La liste des cours likés avec leur date de like
-   */
   async getLikedCourses(userId: number): Promise<LikedCourse[]> {
-    // 📜 Utilisation de Prisma pour une requête avec jointure
     const likes = await this.prisma.like.findMany({
       where: {
         user_id: userId,
@@ -51,17 +40,8 @@ export class AccountRepository {
     }));
   }
 
-  /**
-   * Met à jour l'abonnement d'un utilisateur vers Max
-   * 🤓 Utilise une transaction pour garantir l'atomicité
-   *
-   * @param userId - L'ID de l'utilisateur
-   * @param endDate - La date de fin du nouvel abonnement
-   */
   async upgradeSubscription(userId: number, endDate: Date): Promise<void> {
-    // 📜 Transaction Prisma pour garantir l'atomicité
     await this.prisma.$transaction(async (tx) => {
-      // Désactiver tous les abonnements actifs
       await tx.subscription.updateMany({
         where: {
           user_id: userId,
@@ -72,7 +52,6 @@ export class AccountRepository {
         },
       });
 
-      // Créer le nouvel abonnement Max
       await tx.subscription.create({
         data: {
           user_id: userId,

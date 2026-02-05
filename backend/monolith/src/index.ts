@@ -12,13 +12,11 @@ app.use(metricsMiddleware);
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-import accountsRoutes from "./accounts/routes/accounts";
 import catalogRoutes from "./courses/routes/catalog";
 import coursesRoutes from "./courses/routes/courses";
 
 app.use("/api/catalog", catalogRoutes);
 app.use("/api/courses", coursesRoutes);
-app.use("/api/accounts", accountsRoutes);
 
 /**
  * @swagger
