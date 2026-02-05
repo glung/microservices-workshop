@@ -36,3 +36,17 @@ model Like {
   @@unique([user_id, course_id])
   @@map("likes")
 }
+
+model Subscription {
+  id         Int              @id @default(autoincrement())
+  user_id    Int
+  kind       SubscriptionKind @default(Free)
+  start_date DateTime         @default(now())
+  end_date   DateTime?
+  active     Boolean          @default(true)
+  user       User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, active])
+  @@map("subscriptions")
+}
+
