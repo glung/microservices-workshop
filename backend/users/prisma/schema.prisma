@@ -1,0 +1,38 @@
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SubscriptionKind {
+  Free
+  Max
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  password      String
+  name          String
+  created_at    DateTime       @default(now())
+  subscriptions Subscription[]
+
+  @@map("users")
+}
+
+model Subscription {
+  id         Int              @id @default(autoincrement())
+  user_id    Int
+  kind       SubscriptionKind @default(Free)
+  start_date DateTime         @default(now())
+  end_date   DateTime?
+  active     Boolean          @default(true)
+  user       User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, active])
+  @@map("subscriptions")
+}
