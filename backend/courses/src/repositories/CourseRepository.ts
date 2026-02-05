@@ -1,5 +1,5 @@
 import { Course, PrismaClient } from "@prisma/client";
-import { prisma as defaultPrisma } from "../../prisma";
+import { prisma as defaultPrisma } from "../../../monolith/src/prisma";
 
 /**
  * 📣 Le Repository gère l'accès aux données du domaine Course

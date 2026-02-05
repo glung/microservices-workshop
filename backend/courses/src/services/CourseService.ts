@@ -2,7 +2,7 @@ import {
   CourseRepository,
   CourseWithLikes,
 } from "../repositories/CourseRepository";
-import { SubscriptionKind } from "../../types/models";
+import { SubscriptionKind } from "../../../monolith/src/types/models";
 import { Course } from "@prisma/client";
 
 /**
