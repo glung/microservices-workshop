@@ -23,7 +23,6 @@
     "resolveJsonModule": true,
     "moduleResolution": "node"
   },
-  "include": ["src/**/*", "../courses/src/repositories/CourseRepository.ts", "../courses/src/routes/catalog.ts", "../courses/src/routes/courses.ts", "../courses/src/services/CourseService.ts"],
-  "exclude": ["node_modules", "dist"],
-  "files": ["src/types/express.d.ts"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Example {
+  id        Int      @id @default(autoincrement())
+  name      String
+  created_at DateTime @default(now())
+
+  @@map("examples")
+}
+
+model Course {
+  id         Int              @id @default(autoincrement())
+  name       String
+  author     String
+  content    String
+  kind       SubscriptionKind @default(Free)
+  created_at DateTime         @default(now())
+  likes      Like[]
+
+  @@map("courses")
+}
+
+model Like {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  course_id  Int
+  created_at DateTime @default(now())
+  course     Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, course_id])
+  @@map("likes")
+}

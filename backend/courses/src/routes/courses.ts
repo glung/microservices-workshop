@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
-import { authenticate, optionalAuth } from "../../auth/middleware/auth";
-import { courseViews, courseLikes, errorTotal } from "../../monitoring/metrics";
+import { authenticate, optionalAuth } from "../../../monolith/src/auth/middleware/auth";
+import { courseViews, courseLikes, errorTotal } from "../../../monolith/src/monitoring/metrics";
 import { CourseService } from "../services/CourseService";
 
 const router = express.Router();
