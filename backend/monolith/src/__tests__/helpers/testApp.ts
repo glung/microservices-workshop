@@ -1,4 +1,5 @@
 import express from 'express';
+import jwt from 'jsonwebtoken';
 
 // Mock metrics before importing routes
 jest.mock('../../monitoring/metrics', () => ({
@@ -31,7 +32,6 @@ jest.mock('../../db', () => {
   };
 });
 
-import authRoutes from '../../auth/routes/auth';
 import catalogRoutes from '../../courses/routes/catalog';
 import coursesRoutes from '../../courses/routes/courses';
 import accountsRoutes from '../../accounts/routes/accounts';
@@ -40,7 +40,27 @@ export const createTestApp = () => {
   const app = express();
   app.use(express.json());
 
-  app.use('/api/auth', authRoutes);
+  // In e2e/unit HTTP tests we call the monolith directly (no gateway).
+  // Translate Authorization: Bearer <jwt> into x-user-id like the gateway would.
+  app.use((req, _res, next) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.replace('Bearer ', '');
+    if (!token) {
+      next();
+      return;
+    }
+
+    try {
+      const secret = process.env.JWT_SECRET || 'test_secret';
+      const decoded = jwt.verify(token, secret) as { userId: number };
+      req.headers['x-user-id'] = decoded.userId.toString();
+    } catch {
+      // ignore invalid tokens; routes will handle auth failures
+    }
+
+    next();
+  });
+
   app.use('/api/catalog', catalogRoutes);
   app.use('/api/courses', coursesRoutes);
   app.use('/api/accounts', accountsRoutes);

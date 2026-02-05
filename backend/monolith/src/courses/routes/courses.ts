@@ -1,5 +1,5 @@
 import express, { Request, Response } from "express";
-import { authenticate, optionalAuth } from "../../auth/middleware/auth";
+import { authenticate, optionalAuth } from "../../middleware/auth";
 import { courseViews, courseLikes, errorTotal } from "../../monitoring/metrics";
 import { CourseService } from "../services/CourseService";
 

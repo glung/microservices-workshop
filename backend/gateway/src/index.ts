@@ -8,6 +8,15 @@ const app = express();
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const MONOLITH_URL = process.env.MONOLITH_URL;
+const USERS_URL = process.env.USERS_URL;
+
+if (!MONOLITH_URL) {
+  throw new Error("MONOLITH_URL is not defined");
+}
+
+if (!USERS_URL) {
+  throw new Error("USERS_URL is not defined");
+}
 
 app.use(metricsMiddleware);
 
@@ -103,6 +112,14 @@ app.use((req, res, next) => {
 });
 
 // Proxy toutes les requêtes vers le monolithe
+app.use(
+  "/api/auth",
+  createProxyMiddleware({
+    target: USERS_URL,
+    changeOrigin: true,
+  }),
+);
+
 app.use(
   "/",
   createProxyMiddleware({

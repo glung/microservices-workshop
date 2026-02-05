@@ -33,9 +33,6 @@ export interface Like {
   created_at: Date;
 }
 
-// UserWithSubscription is now defined in users/repositories/UserRepository.ts
-export type { UserWithSubscription } from "../users/repositories/UserRepository";
-
 export interface CourseWithLikes extends Course {
   like_count: number;
   is_liked?: boolean;

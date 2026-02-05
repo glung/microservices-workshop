@@ -1,19 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 
-// 📣 Mock du AuthService avant d'importer le middleware
-const mockAuthenticateUserById = jest.fn();
+const mockQuery = jest.fn();
 
-jest.mock('../../../../auth/services/AuthService', () => {
+jest.mock('../../../../db', () => {
   return {
-    AuthService: jest.fn().mockImplementation(() => {
-      return {
-        authenticateUserById: mockAuthenticateUserById,
-      };
-    }),
+    pool: {
+      query: (...args: any[]) => mockQuery(...args),
+    },
+    initDB: jest.fn().mockResolvedValue(undefined),
   };
 });
 
-import { authenticate, optionalAuth } from '../../../../auth/middleware/auth';
+import { authenticate, optionalAuth } from '../../../middleware/auth';
 
 describe('authenticate middleware', () => {
   let mockReq: Partial<Request>;
@@ -40,17 +38,21 @@ describe('authenticate middleware', () => {
         'x-user-id': '1'
       };
 
-      mockAuthenticateUserById.mockResolvedValue({
-        id: userId,
-        email: 'test@example.com',
-        name: 'Test User',
-        subscription_kind: 'Free',
-        end_date: null
+      mockQuery.mockResolvedValue({
+        rows: [
+          {
+            id: userId,
+            email: 'test@example.com',
+            name: 'Test User',
+            subscription_kind: 'Free',
+            end_date: null,
+          },
+        ],
       });
 
       await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAuthenticateUserById).toHaveBeenCalledWith(userId);
+      expect(mockQuery).toHaveBeenCalled();
       expect(mockReq.user).toEqual({
         id: userId,
         email: 'test@example.com',
@@ -98,7 +100,7 @@ describe('authenticate middleware', () => {
         'x-user-id': '999'
       };
 
-      mockAuthenticateUserById.mockResolvedValue(null);
+      mockQuery.mockResolvedValue({ rows: [] });
 
       await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
@@ -117,18 +119,24 @@ describe('authenticate middleware', () => {
         'x-user-id': '1'
       };
 
-      // 📣 Le AuthService gère maintenant l'expiration et retourne Free
-      mockAuthenticateUserById.mockResolvedValue({
-        id: userId,
-        email: 'test@example.com',
-        name: 'Test User',
-        subscription_kind: 'Free',
-        end_date: null
-      });
+      const past = new Date(Date.now() - 60 * 60 * 1000);
+      mockQuery
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: userId,
+              email: 'test@example.com',
+              name: 'Test User',
+              subscription_kind: 'Max',
+              end_date: past,
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [] });
 
       await authenticate(mockReq as Request, mockRes as Response, mockNext);
 
-      expect(mockAuthenticateUserById).toHaveBeenCalledWith(userId);
+      expect(mockQuery).toHaveBeenCalled();
       expect(mockReq.user?.subscription_kind).toBe('Free');
       expect(mockNext).toHaveBeenCalled();
     });
@@ -163,12 +171,16 @@ describe('optionalAuth middleware', () => {
       'x-user-id': '1'
     };
 
-    mockAuthenticateUserById.mockResolvedValue({
-      id: userId,
-      email: 'test@example.com',
-      name: 'Test User',
-      subscription_kind: 'Max',
-      end_date: null
+    mockQuery.mockResolvedValue({
+      rows: [
+        {
+          id: userId,
+          email: 'test@example.com',
+          name: 'Test User',
+          subscription_kind: 'Max',
+          end_date: null,
+        },
+      ],
     });
 
     await optionalAuth(mockReq as Request, mockRes as Response, mockNext);

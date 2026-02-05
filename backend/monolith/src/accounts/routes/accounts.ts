@@ -1,5 +1,5 @@
 import express, { Request, Response } from "express";
-import { authenticate } from "../../auth/middleware/auth";
+import { authenticate } from "../../middleware/auth";
 import { subscriptionUpgrades, errorTotal } from "../../monitoring/metrics";
 import { AccountService } from "../services/AccountService";
 
