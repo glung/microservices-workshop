@@ -21,6 +21,7 @@ model User {
   name          String
   created_at    DateTime       @default(now())
   subscriptions Subscription[]
+  likes         Like[]
 
   @@map("users")
 }
@@ -55,7 +56,9 @@ model Like {
   user_id    Int
   course_id  Int
   created_at DateTime @default(now())
+
   course     Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, course_id])
   @@map("likes")
