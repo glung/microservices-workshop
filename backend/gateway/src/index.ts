@@ -8,109 +8,107 @@ const app = express();
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const MONOLITH_URL = process.env.MONOLITH_URL;
+// 👇 NOUVEAU : On récupère l'URL du service Users
+const USERS_URL = process.env.USERS_URL || "http://users:3000";
 
 app.use(metricsMiddleware);
 
 app.get("/gateway/health", (req, res) => {
-  res.status(200).json({
-    status: "healthy",
-    service: "gateway",
-    timestamp: new Date().toISOString(),
-  });
+	res.status(200).json({
+		status: "healthy",
+		service: "gateway",
+		timestamp: new Date().toISOString(),
+	});
 });
 
 app.get("/metrics", async (req, res) => {
-  res.set("Content-Type", register.contentType);
-  res.end(await register.metrics());
+	res.set("Content-Type", register.contentType);
+	res.end(await register.metrics());
 });
 
-// Détermine si une route nécessite une authentification obligatoire, optionnelle, ou aucune
 function getAuthLevel(
-  path: string,
-  method: string,
+	path: string,
+	method: string,
 ): "none" | "optional" | "required" {
-  // Routes publiques (pas d'authentification requise)
-  if (
-    path.startsWith("/api/auth/") ||
-    path === "/health" ||
-    path === "/metrics" ||
-    path === "/gateway/health"
-  ) {
-    return "none";
-  }
+	if (
+		path.startsWith("/api/auth/") ||
+		path === "/health" ||
+		path === "/metrics" ||
+		path === "/gateway/health"
+	) {
+		return "none";
+	}
 
-  // Routes protégées (authentification obligatoire)
-  if (path.startsWith("/api/accounts/")) return "required";
-  if (
-    path.match(/^\/api\/courses\/\d+\/(like|unlock)$/) &&
-    (method === "POST" || method === "DELETE")
-  ) {
-    return "required";
-  }
+	if (path.startsWith("/api/accounts/")) return "required";
+	if (
+		path.match(/^\/api\/courses\/\d+\/(like|unlock)$/) &&
+		(method === "POST" || method === "DELETE")
+	) {
+		return "required";
+	}
 
-  // Routes avec authentification optionnelle
-  if (path === "/api/catalog") return "optional";
-  if (path.match(/^\/api\/courses\/\d+$/) && method === "GET")
-    return "optional";
+	if (path === "/api/catalog") return "optional";
+	if (path.match(/^\/api\/courses\/\d+$/) && method === "GET")
+		return "optional";
 
-  return "none";
+	return "none";
 }
 
-// Middleware d'authentification JWT
 app.use((req, res, next) => {
-  const authLevel = getAuthLevel(req.path, req.method);
+	const authLevel = getAuthLevel(req.path, req.method);
 
-  // Pas d'authentification nécessaire pour les routes publiques
-  if (authLevel === "none") {
-    return next();
-  }
+	if (authLevel === "none") {
+		return next();
+	}
 
-  // Extrait le token du header Authorization: Bearer <token>
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.replace("Bearer ", "");
+	const authHeader = req.headers.authorization;
+	const token = authHeader?.replace("Bearer ", "");
 
-  // Gérer l'absence de token
-  if (!token) {
-    if (authLevel === "required") {
-      // Routes protégées : retourner 401 si pas de token
-      return res.status(401).json({ error: "Authentication required" });
-    }
-    // Routes optionnelles : continuer sans contexte utilisateur
-    return next();
-  }
+	if (!token) {
+		if (authLevel === "required") {
+		return res.status(401).json({ error: "Authentication required" });
+		}
+		return next();
+	}
 
-  // Vérifier la validité du token JWT
-  try {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new Error("JWT_SECRET is not defined");
-    }
+	try {
+		const secret = process.env.JWT_SECRET;
+		if (!secret) {
+		throw new Error("JWT_SECRET is not defined");
+		}
 
-    const decoded = jwt.verify(token, secret) as { userId: number };
-
-    // Ajouter le header X-User-ID pour transmettre l'identité au monolithe
-    req.headers["x-user-id"] = decoded.userId.toString();
-    next();
-  } catch (err) {
-    // Token invalide ou expiré
-    if (authLevel === "required") {
-      // Routes protégées : retourner 401
-      return res.status(401).json({ error: "Invalid token" });
-    }
-    // Routes optionnelles : continuer sans contexte utilisateur
-    next();
-  }
+		const decoded = jwt.verify(token, secret) as { userId: number };
+		req.headers["x-user-id"] = decoded.userId.toString();
+		next();
+	} catch (err) {
+		if (authLevel === "required") {
+		return res.status(401).json({ error: "Invalid token" });
+		}
+		next();
+	}
 });
 
-// Proxy toutes les requêtes vers le monolithe
 app.use(
-  "/",
-  createProxyMiddleware({
-    target: MONOLITH_URL,
-    changeOrigin: true,
-  }),
+	"/api/auth",
+	createProxyMiddleware({
+		target: USERS_URL,
+		changeOrigin: true,
+		pathRewrite: {
+		"^/api/auth": "/auth", 
+		},
+	}),
+);
+
+app.use(
+	"/",
+	createProxyMiddleware({
+		target: MONOLITH_URL,
+		changeOrigin: true,
+	}),
 );
 
 app.listen(PORT, () => {
-  console.log(`✅ Gateway running on port ${PORT}`);
+	console.log(`✅ Gateway running on port ${PORT}`);
+	console.log(`➡️  Auth routes proxying to ${USERS_URL}`);
+	console.log(`➡️  Other routes proxying to ${MONOLITH_URL}`);
 });
